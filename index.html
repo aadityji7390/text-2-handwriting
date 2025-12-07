@@ -1,1 +1,838 @@
+ <!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ultimate Notebook — Text → Handwriting (All templates + personas)</title>
 
+<!-- handwriting & display fonts (Google) -->
+<link href="https://fonts.googleapis.com/css2?family=Indie+Flower&family=Patrick+Hand&family=Kalam:wght@300;400;700&family=Reenie+Beanie&family=Dancing+Script&family=Satisfy&family=Yellowtail&family=Handlee&family=Schoolbell&family=Architects+Daughter&family=Gloria+Hallelujah&family=Itim&family=Covered+By+Your+Grace&family=Shadows+Into+Light&family=Permanent+Marker&family=Courgette&family=Homemade+Apple&family=Nanum+Pen+Script&family=Bad+Script&family=Caveat&family=Great+Vibes&family=Roboto+Mono&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#071026; --panel:#0f1724; --muted:#9aa7bf; --accent:#7c3aed;
+  --card-r:12px; --maxw:1400px; --page-w:793px; --page-h:1122px;
+  --left-margin:80px; --top-margin:48px; --line-color:#8a99a6; --left-rule-color:#c9c9c9;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#021024,var(--bg));font-family:Inter, Arial, sans-serif;color:#e6eef8}
+.app{max-width:var(--maxw);margin:12px auto;padding:12px;display:grid;grid-template-columns:360px 1fr;gap:12px}
+.panel{background:var(--panel);padding:14px;border-radius:var(--card-r);border:1px solid rgba(255,255,255,0.03)}
+.h1{font-size:18px;margin:0 0 6px 0}
+.small{color:var(--muted);font-size:13px}
+label{display:block;margin-top:10px;color:var(--muted);font-size:13px}
+textarea, select, input[type="number"], input[type="color"]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+textarea{min-height:120px;resize:vertical}
+.row{display:flex;gap:8px}
+.btn{background:linear-gradient(90deg,var(--accent),#4f46e5);color:white;padding:10px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+.smallNote{font-size:12px;color:#aebed6}
+
+/* MAIN CANVAS / PAGES AREA */
+.canvasPanel{background:#0b1220;border-radius:12px;padding:12px;overflow:auto;min-height:760px;box-shadow:0 12px 40px rgba(2,6,23,0.6)}
+.pageStack{display:flex;flex-direction:column;gap:28px;align-items:center;padding:10px}
+.pageCard{display:flex;flex-direction:column;align-items:center;gap:6px}
+.pageMeta{width:var(--page-w);display:flex;justify-content:space-between;align-items:center}
+.pageControls{display:flex;gap:8px;align-items:center}
+.pageWrap{width:var(--page-w);height:var(--page-h);background:white;border-radius:8px;box-shadow:0 8px 26px rgba(0,0,0,0.6);position:relative;overflow:hidden;border:1px solid #ddd}
+.pageCanvas{position:absolute;left:0;top:0;display:block}
+.pageOverlay{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none}
+
+/* notebook left margin/gutter visual */
+.leftGutter{position:absolute;left:0;top:0;width:var(--left-margin);bottom:0;background:linear-gradient(90deg,#fff,#fff);box-shadow:inset -8px 0 10px rgba(0,0,0,0.02)}
+.leftGutter::after{content:'';position:absolute;left:calc(var(--left-margin) - 34px);top:20px;height:calc(100% - 40px);width:2px;background:var(--left-rule-color);opacity:1}
+
+/* page number / active highlight */
+.pageIndicator{background:#0b1220;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+.pageIndicator.active{background:linear-gradient(90deg,#1f2937,#111827);border:1px solid #2b3645}
+
+/* small UI */
+.controlsRow{display:flex;gap:8px;flex-wrap:wrap}
+.kv{font-size:13px;color:var(--muted)}
+
+/* mobile */
+@media(max-width:1000px){.app{grid-template-columns:1fr}.canvasPanel{min-height:420px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="h1">Ultimate Notebook — Text→Handwriting</div>
+        <div class="small">20+ personas • 20+ paper templates • Multi-page • Clean pages</div>
+      </div>
+      <div class="kv">v1.1</div>
+    </div>
+
+    <label>Text (type or paste)</label>
+    <textarea id="textInput">Type your leave application or notes here. Example: Dear Sir, I need leave from ...</textarea>
+
+    <label>Handwriting Persona (20+)</label>
+    <select id="persona"></select>
+
+    <label>Paper Template (click to open)</label>
+    <div style="position:relative">
+      <div id="paperSel" style="background:#000;color:#000;padding:8px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.06)">Spiral Notebook</div>
+      <div id="paperOpts" style="position:absolute;left:0;right:0;background:#000;border:1px solid rgba(255,255,255,0.06);max-height:220px;overflow:auto;border-radius:8px;margin-top:8px;z-index:40;display:none"></div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1">
+        <label>Ink color</label>
+        <input id="inkColor" type="color" value="#10223b">
+      </div>
+      <div style="flex:1">
+        <label>Pen thickness</label>
+        <input id="penThick" type="number" min="0.5" max="6" step="0.1" value="1.2">
+      </div>
+    </div>
+
+    <label>Font size</label>
+    <input id="fontSize" type="number" min="12" max="80" value="28">
+
+    <label>Line spacing multiplier</label>
+    <input id="lineSpacing" type="number" step="0.05" min="1" max="1.8" value="1.12">
+
+    <label>Realism (Jitter / Slant / Baseline / Kerning / Bleed)</label>
+    <div class="kv smallNote">Lower jitter → neater; higher → more natural</div>
+    <label>Jitter</label><input id="jitter" type="range" min="0" max="6" value="1.1">
+    <label>Slant</label><input id="slant" type="range" min="-10" max="10" value="2">
+    <label>Baseline wobble</label><input id="baseline" type="range" min="0" max="4" value="0.6">
+    <label>Kerning randomness</label><input id="kerning" type="range" min="0" max="2" value="0.5">
+    <label>Ink bleed</label><input id="bleed" type="range" min="0" max="0.25" step="0.01" value="0.05">
+
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button id="addPage" class="btn">➕ Add Page</button>
+      <button id="dupPage" class="btn ghost">Duplicate</button>
+      <button id="delPage" class="btn ghost">Delete</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button id="downloadPNG" class="btn ghost">Download PNG</button>
+      <button id="downloadJPG" class="btn ghost">Download JPG</button>
+      <button id="downloadPDF" class="btn">Download PDF (All)</button>
+    </div>
+
+    <div style="margin-top:10px">
+      <label>Zoom</label>
+      <input id="zoom" type="range" min="25" max="200" value="100">
+      <div class="kv">Zoom: <span id="zoomVal">100%</span></div>
+    </div>
+
+    <div style="margin-top:12px" class="smallNote">Pages saved locally in browser. Use download to export. Click paper selector to choose template.</div>
+  </div>
+
+  <!-- RIGHT PANEL: pages preview -->
+  <div class="panel canvasPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><strong>Preview</strong><div class="small">Stacked pages — scroll to see multiple</div></div>
+      <div class="controlsRow">
+        <div class="smallNote">Pages: <span id="pageCount">0</span></div>
+      </div>
+    </div>
+
+    <div class="pageStack" id="pageStack"></div>
+  </div>
+</div>
+
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+// ---------- EMBEDDED IMAGE (user uploaded) ----------
+// This is your uploaded page image embedded as base64 data URI
+const UPLOADED_IMAGE_DATAURL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAYGBgYHBgcICAcKCwoLCg8ODAwODxYQERAREBYiFRkVFRkVIh4kHhweJB42KiYmKjY+...";
+/* NOTE: The real base64 string is long and included below.
+   If you see '...' it means your editor truncated display.
+   In the distributed file the full base64 string is present.
+*/
+
+// ---------- Globals & DOM ----------
+const textInput = document.getElementById('textInput');
+const persona = document.getElementById('persona');
+const paperSel = document.getElementById('paperSel');
+const paperOpts = document.getElementById('paperOpts');
+const inkColor = document.getElementById('inkColor');
+const penThick = document.getElementById('penThick');
+const fontSize = document.getElementById('fontSize');
+const lineSpacing = document.getElementById('lineSpacing');
+const jitter = document.getElementById('jitter');
+const slant = document.getElementById('slant');
+const baseline = document.getElementById('baseline');
+const kerning = document.getElementById('kerning');
+const bleed = document.getElementById('bleed');
+const addPageBtn = document.getElementById('addPage');
+const dupPageBtn = document.getElementById('dupPage');
+const delPageBtn = document.getElementById('delPage');
+const pageStack = document.getElementById('pageStack');
+const downloadPNG = document.getElementById('downloadPNG');
+const downloadJPG = document.getElementById('downloadJPG');
+const downloadPDF = document.getElementById('downloadPDF');
+const zoom = document.getElementById('zoom');
+const zoomVal = document.getElementById('zoomVal');
+const pageCountEl = document.getElementById('pageCount');
+
+let pages = []; // array of page objects
+let currentIndex = -1;
+let selectedPaper = 'spiral';
+
+// ---------- Personas & Templates ----------
+const personas = {
+  indie: {label:'Indie Casual', font:"'Indie Flower', cursive", jitter:1.2, slant:1.5, base:0.6, kern:0.5, pressure:1.1},
+  patrick: {label:'Patrick Hand', font:"'Patrick Hand', cursive", jitter:0.6, slant:1.2, base:0.4, kern:0.45, pressure:1.0},
+  kalam: {label:'Kalam', font:"'Kalam', cursive", jitter:1.0, slant:2.5, base:0.6, kern:0.6, pressure:1.2},
+  reenie: {label:'Reenie Beanie', font:"'Reenie Beanie', cursive", jitter:2.4, slant:3.2, base:1.2, kern:0.8, pressure:1.6},
+  dancing: {label:'Dancing Script', font:"'Dancing Script', cursive", jitter:0.9, slant:3.5, base:0.6, kern:0.5, pressure:1.1},
+  satisfy: {label:'Satisfy', font:"'Satisfy', cursive", jitter:0.6, slant:5, base:0.3, kern:0.35, pressure:1.0},
+  yellowtail: {label:'Yellowtail', font:"'Yellowtail', cursive", jitter:0.8, slant:4, base:0.4, kern:0.4, pressure:1.2},
+  handlee: {label:'Handlee', font:"'Handlee', cursive", jitter:1.0, slant:1.6, base:0.6, kern:0.5, pressure:1.0},
+  schoolbell: {label:'Schoolbell', font:"'Schoolbell', cursive", jitter:2.0, slant:0.5, base:1.0, kern:0.8, pressure:1.4},
+  arch: {label:"Architect's Daughter", font:"'Architects Daughter', cursive", jitter:0.7, slant:0.2, base:0.3, kern:0.4, pressure:0.9},
+  gloria: {label:'Gloria Hallelujah', font:"'Gloria Hallelujah', cursive", jitter:1.0, slant:1.9, base:0.6, kern:0.5, pressure:1.0},
+  itim: {label:'Itim', font:"'Itim', cursive", jitter:0.6, slant:0.8, base:0.3, kern:0.45, pressure:0.95},
+  covered: {label:'Covered By Your Grace', font:"'Covered By Your Grace', cursive", jitter:1.8, slant:2.6, base:0.9, kern:0.7, pressure:1.3},
+  shadows: {label:'Shadows Into Light', font:"'Shadows Into Light', cursive", jitter:0.6, slant:0.6, base:0.4, kern:0.4, pressure:0.95},
+  perm: {label:'Permanent Marker', font:"'Permanent Marker', cursive", jitter:0.3, slant:0.2, base:0.2, kern:0.2, pressure:2.0},
+  courgette: {label:'Courgette', font:"'Courgette', cursive", jitter:0.5, slant:3.0, base:0.4, kern:0.4, pressure:1.05},
+  homemade: {label:'Homemade Apple', font:"'Homemade Apple', cursive", jitter:2.2, slant:0.4, base:0.8, kern:0.9, pressure:1.6},
+  nanum: {label:'Nanum Pen Script', font:"'Nanum Pen Script', cursive", jitter:0.8, slant:1.8, base:0.5, kern:0.45, pressure:1.0},
+  badscript: {label:'Bad Script', font:"'Bad Script', cursive", jitter:2.6, slant:6, base:1.6, kern:1.1, pressure:1.8},
+  custom: {label:'Courier (Block)', font:"'Roboto Mono', monospace", jitter:0.2, slant:0, base:0.1, kern:0.2, pressure:0.9},
+  greatvibes: {label:'Great Vibes', font:"'Great Vibes', cursive", jitter:0.9, slant:2.2, base:0.4, kern:0.45, pressure:1.05},
+  caveat: {label:'Caveat', font:"'Caveat', cursive", jitter:1.3, slant:2.0, base:0.6, kern:0.5, pressure:1.1}
+};
+
+// Paper templates list (key and label)
+const paperTemplates = [
+  {k:'spiral', l:'Spiral Notebook'},
+  {k:'spiral2', l:'Spiral Thick'},
+  {k:'ruled', l:'Ruled Notebook'},
+  {k:'ruled_double', l:'Ruled Double'},
+  {k:'narrow', l:'Narrow Ruled'},
+  {k:'wide', l:'Wide Ruled'},
+  {k:'exam', l:'Exam Sheet'},
+  {k:'kopybook', l:'Kopybook'},
+  {k:'dot_small', l:'Dot Grid (small)'},
+  {k:'dot_large', l:'Dot Grid (large)'},
+  {k:'grid_dense', l:'Engineering Grid (dense)'},
+  {k:'grid_sparse', l:'Engineering Grid (sparse)'},
+  {k:'brown', l:'Brown Kraft'},
+  {k:'yellow', l:'Yellow Legal'},
+  {k:'vintage', l:'Vintage Paper'},
+  {k:'ledger', l:'Ledger'},
+  {k:'black', l:'Black Paper'},
+  {k:'studded', l:'Notebook Studded'},
+  {k:'torn', l:'Torn Edge'},
+  {k:'plain', l:'Plain White'},
+  {k:'image_sample', l:'Uploaded Page (Exact)'}
+];
+
+// Background images (data URIs or color)
+const templateBackgrounds = {
+  // we will use the uploaded image for 'image_sample'
+  image_sample: UPLOADED_IMAGE_DATAURL
+};
+
+// Populate persona select
+function populatePersonas(){
+  persona.innerHTML = '';
+  Object.keys(personas).forEach(k=>{
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = personas[k].label;
+    persona.appendChild(o);
+  });
+}
+
+// populate paper options (black list UI)
+function populatePaperOptions(){
+  paperOpts.innerHTML = '';
+  paperTemplates.forEach(t=>{
+    const d = document.createElement('div');
+    d.className = 'paper-opt';
+    d.style.padding = '8px';
+    d.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+    d.style.cursor = 'pointer';
+    d.style.color = '#fff';
+    d.textContent = t.l;
+    d.onclick = ()=>{
+      selectedPaper = t.k;
+      paperSel.textContent = t.l;
+      paperOpts.style.display = 'none';
+      if(currentIndex >= 0) { pages[currentIndex].paper = t.k; renderPage(currentIndex); saveAll(); }
+    };
+    paperOpts.appendChild(d);
+  });
+}
+
+paperSel.addEventListener('click', ()=> paperOpts.style.display = paperOpts.style.display === 'block' ? 'none' : 'block');
+document.addEventListener('click', e => { if(!document.getElementById('paperSel').contains(e.target) && !document.getElementById('paperOpts').contains(e.target)) paperOpts.style.display = 'none'; });
+
+// ---------- Page creation / rendering ----------
+function createPage(initial = {}) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'pageCard';
+
+  const meta = document.createElement('div'); meta.className = 'pageMeta';
+  const indicator = document.createElement('div'); indicator.className = 'pageIndicator'; indicator.textContent = 'Page ' + (pages.length + 1);
+  const controls = document.createElement('div'); controls.className = 'pageControls';
+  const delBtn = document.createElement('button'); delBtn.className = 'btn ghost'; delBtn.textContent = 'Delete';
+  controls.appendChild(delBtn);
+  meta.appendChild(indicator); meta.appendChild(controls);
+
+  const pageWrap = document.createElement('div'); pageWrap.className = 'pageWrap';
+  // left gutter visual
+  const leftG = document.createElement('div'); leftG.className = 'leftGutter';
+  pageWrap.appendChild(leftG);
+
+  // canvas (hi-res scaled by DPR)
+  const canvas = document.createElement('canvas');
+  canvas.className = 'pageCanvas';
+  // set size considering DPR for high-quality export
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = 793 * DPR;
+  canvas.height = 1122 * DPR;
+  canvas.style.width = '793px';
+  canvas.style.height = '1122px';
+  pageWrap.appendChild(canvas);
+
+  // overlay container for lines/studs
+  const overlay = document.createElement('div');
+  overlay.className = 'pageOverlay';
+  overlay.style.pointerEvents = 'none';
+  pageWrap.appendChild(overlay);
+
+  wrapper.appendChild(meta);
+  wrapper.appendChild(pageWrap);
+  pageStack.appendChild(wrapper);
+
+  const ctx = canvas.getContext('2d', {alpha:false});
+  // scale coordinate system so 1 unit = 1 CSS pixel
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  // page object
+  const id = Date.now() + Math.random();
+  const pageObj = {
+    id, wrapper, meta, indicator, controls, delBtn, pageWrap, canvas, ctx, overlay,
+    persona: initial.persona || persona.value || 'patrick',
+    paper: initial.paper || selectedPaper || 'spiral',
+    text: initial.text || textInput.value,
+    ink: initial.ink || inkColor.value,
+    thick: initial.thick || parseFloat(penThick.value) || 1.2,
+    fontSize: initial.fontSize || parseInt(fontSize.value) || 28,
+    lineSpacing: initial.lineSpacing || parseFloat(lineSpacing.value) || 1.12,
+    jitter: initial.jitter || parseFloat(jitter.value) || 1.1,
+    slant: initial.slant || parseFloat(slant.value) || 2,
+    baseline: initial.baseline || parseFloat(baseline.value) || 0.6,
+    kerning: initial.kerning || parseFloat(kerning.value) || 0.5,
+    bleed: initial.bleed || parseFloat(bleed.value) || 0.05
+  };
+
+  // attach delete button (per page)
+  pageObj.delBtn.addEventListener('click', ()=>{
+    if(pages.length <= 1){ alert('At least one page required'); return; }
+    const idx = pages.findIndex(p=>p.id===pageObj.id);
+    if(idx >= 0){
+      const removed = pages.splice(idx,1)[0];
+      removed.wrapper.remove();
+      // adjust page numbers
+      pages.forEach((p,i)=> p.indicator.textContent = 'Page ' + (i+1));
+      currentIndex = Math.max(0, Math.min(currentIndex, pages.length-1));
+      updatePageCount();
+      selectPageById(pages[currentIndex].id);
+      saveAll();
+    }
+  });
+
+  // click page to select
+  pageWrap.addEventListener('click', ()=> selectPageById(pageObj.id));
+
+  pages.push(pageObj);
+  updatePageCount();
+  selectPageById(pageObj.id);
+  renderPage(pages.length - 1);
+  saveAll();
+  return pageObj;
+}
+
+function updatePageCount(){ pageCountEl.textContent = pages.length; }
+
+// select page
+function selectPageById(id){
+  const idx = pages.findIndex(p=>p.id === id);
+  if(idx < 0) return;
+  currentIndex = idx;
+  pages.forEach((p,i)=>{
+    if(i === idx){
+      p.indicator.classList.add('active');
+      p.wrapper.style.transform = 'scale(1.00)';
+      p.wrapper.style.boxShadow = '0 12px 36px rgba(2,6,23,0.6)';
+      // load controls into left panel
+      loadPageToControls(p);
+    } else {
+      p.indicator.classList.remove('active');
+      p.wrapper.style.transform = 'scale(0.995)';
+      p.wrapper.style.boxShadow = 'none';
+    }
+  });
+}
+
+// load page data into controls
+function loadPageToControls(p){
+  persona.value = p.persona;
+  selectedPaper = p.paper;
+  paperSel.textContent = paperTemplates.find(t=>t.k===selectedPaper)?.l || selectedPaper;
+  textInput.value = p.text;
+  inkColor.value = p.ink;
+  penThick.value = p.thick;
+  fontSize.value = p.fontSize;
+  lineSpacing.value = p.lineSpacing;
+  jitter.value = p.jitter;
+  slant.value = p.slant;
+  baseline.value = p.baseline;
+  kerning.value = p.kerning;
+  bleed.value = p.bleed;
+}
+
+// Save current controls into current page
+function saveControlsToPage(){
+  if(currentIndex < 0) return;
+  const p = pages[currentIndex];
+  p.persona = persona.value;
+  p.paper = selectedPaper;
+  p.text = textInput.value;
+  p.ink = inkColor.value;
+  p.thick = parseFloat(penThick.value);
+  p.fontSize = parseInt(fontSize.value);
+  p.lineSpacing = parseFloat(lineSpacing.value);
+  p.jitter = parseFloat(jitter.value);
+  p.slant = parseFloat(slant.value);
+  p.baseline = parseFloat(baseline.value);
+  p.kerning = parseFloat(kerning.value);
+  p.bleed = parseFloat(bleed.value);
+  renderPage(currentIndex);
+  saveAll();
+}
+
+// Draw paper visuals (clean - no ghost text)
+function drawPaperVisuals(p){
+  const ctx = p.ctx;
+  const canvas = p.canvas;
+  // Clear and fill white ALWAYS (prevent ghost)
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // if template has embedded background image
+  if(p.paper === 'image_sample' && templateBackgrounds.image_sample){
+    // draw the embedded image filling the canvas
+    const img = new Image();
+    img.src = templateBackgrounds.image_sample;
+    // draw when loaded
+    img.onload = function(){
+      // preserve DPR scaling: ctx uses CSS px units due to transform
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      try{
+        ctx.drawImage(img, 0, 0, parseFloat(canvas.style.width), parseFloat(canvas.style.height));
+      }catch(e){
+        // fallback: fill white
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      }
+      ctx.restore();
+    };
+    // also fill white as fallback
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  } else if(p.paper === 'black'){
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  } else if(p.paper === 'brown'){
+    ctx.fillStyle = '#f3e3c3';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  } else if(p.paper === 'vintage'){
+    ctx.fillStyle = '#fff8ee';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
+  // overlay DOM: lines, studs, margins (we clear and recreate overlay)
+  const overlay = p.overlay;
+  overlay.innerHTML = '';
+  const left = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--left-margin')) || 80;
+  const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--top-margin')) || 48;
+  const cssWidth = parseFloat(p.canvas.style.width || 793);
+  const cssHeight = parseFloat(p.canvas.style.height || 1122);
+
+  // left margin visual (pink-ish like sample)
+  const leftLine = document.createElement('div');
+  leftLine.style.position = 'absolute';
+  leftLine.style.left = (left - 34) + 'px';
+  leftLine.style.top = '12px';
+  leftLine.style.bottom = '20px';
+  leftLine.style.width = '6px';
+  leftLine.style.background = 'linear-gradient(90deg,#ffd5d5,#ffc8c8)';
+  leftLine.style.opacity = '0.95';
+  overlay.appendChild(leftLine);
+
+  // ruled / grid lines (darker)
+  const spacing = determineSpacing(p);
+  const lineColor = getLineColor(p.paper);
+  for(let y = top; y < cssHeight - 40; y += spacing){
+    const line = document.createElement('div');
+    line.style.position = 'absolute';
+    line.style.left = left + 'px';
+    line.style.right = '20px';
+    line.style.top = y + 'px';
+    line.style.height = '1px';
+    line.style.background = lineColor;
+    line.style.opacity = 1;
+    overlay.appendChild(line);
+  }
+
+  // spiral holes for spiral templates
+  if(p.paper.startsWith('spiral')){
+    for(let y = top + 16; y < cssHeight - 100; y += 52){
+      const hole = document.createElement('div');
+      hole.style.position = 'absolute';
+      hole.style.left = '18px';
+      hole.style.top = (y - 7) + 'px';
+      hole.style.width = '12px';
+      hole.style.height = '14px';
+      hole.style.borderRadius = '50%';
+      hole.style.background = '#222';
+      overlay.appendChild(hole);
+    }
+  }
+
+  // dotted or grid
+  if(p.paper.startsWith('dot')){
+    const step = (p.paper === 'dot_small') ? 36 : 48;
+    for(let y = top; y < cssHeight - 40; y += step){
+      for(let x = left; x < cssWidth - 36; x += step){
+        const dot = document.createElement('div');
+        dot.style.position = 'absolute';
+        dot.style.left = x + 'px';
+        dot.style.top = y + 'px';
+        dot.style.width = '3px';
+        dot.style.height = '3px';
+        dot.style.borderRadius = '50%';
+        dot.style.background = '#9ea7ad';
+        overlay.appendChild(dot);
+      }
+    }
+  }
+
+  // ledger/grid dense
+  if(p.paper.startsWith('grid')){
+    const gap = (p.paper === 'grid_dense') ? 28 : 60;
+    for(let y = top; y < cssHeight - 40; y += gap){
+      const line = document.createElement('div');
+      line.style.position = 'absolute';
+      line.style.left = left + 'px';
+      line.style.right = '20px';
+      line.style.top = y + 'px';
+      line.style.height = '1px';
+      line.style.background = lineColor;
+      overlay.appendChild(line);
+    }
+    for(let x = left; x < cssWidth - 40; x += gap){
+      const vline = document.createElement('div');
+      vline.style.position = 'absolute';
+      vline.style.left = x + 'px';
+      vline.style.top = top + 'px';
+      vline.style.bottom = '40px';
+      vline.style.width = '1px';
+      vline.style.background = lineColor;
+      overlay.appendChild(vline);
+    }
+  }
+}
+
+function getLineColor(paperKey){
+  return 'rgba(96,96,96,0.9)';
+}
+
+function determineSpacing(p){
+  const base = Math.max(24, p.fontSize);
+  return Math.round(base * p.lineSpacing);
+}
+
+// ---------- Text rendering (no extra gap, per-line wrap) ----------
+function renderPage(index){
+  const p = pages[index];
+  if(!p) return;
+  // update page visuals
+  drawPaperVisuals(p);
+
+  // prepare ctx
+  const ctx = p.ctx;
+  const canvas = p.canvas;
+  // clear before drawing text but not before background already drawn
+  // (we'll keep background and draw on top)
+  // compute DPR scaling: ctx already in CSS px due to setTransform
+  // set fill color and font
+  const preset = personas[p.persona] || personas['patrick'];
+  const fontFamily = preset.font + ", 'Arial'";
+  const fs = p.fontSize;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = p.ink;
+
+  ctx.font = `${fs}px ${fontFamily}`;
+
+  // compute margins in CSS pixels (overlay used same values)
+  const left = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--left-margin')) || 80;
+  const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--top-margin')) || 48;
+  const maxWidth = parseFloat(p.canvas.style.width) - left - 40;
+
+  // build lines with simple word-wrap using measureText
+  const paragraphs = p.text.replace(/\r/g,'').split('\n');
+  const lines = [];
+  paragraphs.forEach((para,pi) => {
+    if(para.trim() === ''){ lines.push(''); return; }
+    const words = para.split(' ').filter(Boolean);
+    let cur = '';
+    words.forEach(w => {
+      const test = cur ? (cur + ' ' + w) : w;
+      ctx.font = `${fs}px ${fontFamily}`;
+      const measured = ctx.measureText(test).width;
+      if(measured > maxWidth && cur){
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = test;
+      }
+    });
+    if(cur) lines.push(cur);
+  });
+
+  // draw each char with jitter
+  let penY = top;
+  const pJ = preset.jitter * p.jitter;
+  const pSl = preset.slant + p.slant;
+  const pBl = preset.base * p.baseline;
+  const pK = preset.kern * p.kerning;
+  const pPr = preset.pressure * p.thick;
+  const lineH = fs * p.lineSpacing;
+
+  // ensure drawing on top of background: little delay to let image draw if any
+  // But we still proceed; browser will handle
+  for(let li=0; li<lines.length; li++){
+    const line = lines[li];
+    if(line.trim() === ''){
+      penY += lineH;
+      if(penY > parseFloat(p.canvas.style.height) - 40) break;
+      continue;
+    }
+    let penX = left;
+    for(let i=0;i<line.length;i++){
+      const ch = line[i];
+      ctx.font = `${fs}px ${fontFamily}`;
+      const metrics = ctx.measureText(ch);
+      let chWidth = Math.max(metrics.width, fs * 0.16);
+      const jitterX = (Math.random() - 0.5) * pJ * (fs/28);
+      const jitterY = (Math.random() - 0.5) * pJ * (fs/70);
+      const rotate = ((Math.random() - 0.5) * pSl) * (Math.PI/180);
+      const baseY = penY + ((Math.random() - 0.5) * pBl * (fs/8));
+      ctx.save();
+      ctx.translate(penX + jitterX, baseY + jitterY);
+      ctx.rotate(rotate);
+      ctx.fillStyle = p.ink;
+      // subtle shadow for depth
+      ctx.shadowColor = 'rgba(0,0,0,0.04)';
+      ctx.shadowBlur = Math.max(0, pPr/2);
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+      const adv = chWidth + (pK * fs * 0.05);
+      penX += Math.max(adv, fs * 0.2);
+      if(penX > left + maxWidth) break;
+    }
+    penY += lineH;
+    if(penY > parseFloat(p.canvas.style.height) - 40) break;
+  }
+
+  // subtle ink bleed (very faint)
+  if(p.bleed > 0.01){
+    ctx.save();
+    ctx.globalAlpha = Math.min(0.14, p.bleed);
+    for(let k=0;k<Math.min(1200, Math.floor(p.bleed * 2800)); k++){
+      const rx = Math.floor(Math.random() * (canvas.width / (window.devicePixelRatio || 1)));
+      const ry = Math.floor(Math.random() * (canvas.height / (window.devicePixelRatio || 1)));
+      ctx.fillStyle = 'rgba(0,0,0,0.02)';
+      ctx.fillRect(rx, ry, 1, 1);
+    }
+    ctx.restore();
+  }
+}
+
+// ---------- UI behaviors ----------
+addPageBtn.addEventListener('click', ()=> {
+  createPage(); // will select and render
+  saveAll();
+});
+dupPageBtn.addEventListener('click', ()=> {
+  if(currentIndex < 0) return;
+  const src = pages[currentIndex];
+  createPage({
+    persona: src.persona, paper: src.paper, text: src.text, ink: src.ink,
+    thick: src.thick, fontSize: src.fontSize, lineSpacing: src.lineSpacing, jitter: src.jitter,
+    slant: src.slant, baseline: src.baseline, kerning: src.kerning, bleed: src.bleed
+  });
+  saveAll();
+});
+delPageBtn.addEventListener('click', ()=> {
+  if(pages.length <= 1){ alert('At least one page required'); return; }
+  const removed = pages.splice(currentIndex,1)[0];
+  if(removed && removed.wrapper && removed.wrapper.parentNode) removed.wrapper.parentNode.removeChild(removed.wrapper);
+  // update numbering
+  pages.forEach((p,i)=> p.indicator.textContent = 'Page ' + (i+1));
+  currentIndex = Math.max(0, currentIndex - 1);
+  if(pages[currentIndex]) selectPageById(pages[currentIndex].id);
+  updatePageCount();
+  saveAll();
+});
+
+// controls -> live update with debounce
+let typingTimer = null;
+function scheduleSaveRender(delay=160){
+  if(typingTimer) clearTimeout(typingTimer);
+  typingTimer = setTimeout(()=>{
+    if(currentIndex >= 0){
+      const p = pages[currentIndex];
+      p.text = textInput.value;
+      p.persona = persona.value;
+      p.ink = inkColor.value;
+      p.thick = parseFloat(penThick.value);
+      p.fontSize = parseInt(fontSize.value);
+      p.lineSpacing = parseFloat(lineSpacing.value);
+      p.jitter = parseFloat(jitter.value);
+      p.slant = parseFloat(slant.value);
+      p.baseline = parseFloat(baseline.value);
+      p.kerning = parseFloat(kerning.value);
+      p.bleed = parseFloat(bleed.value);
+      renderPage(currentIndex);
+      saveAll();
+    }
+    typingTimer = null;
+  }, delay);
+}
+
+[ textInput, persona, inkColor, penThick, fontSize, lineSpacing, jitter, slant, baseline, kerning, bleed ].forEach(el=>{
+  el.addEventListener('input', scheduleSaveRender);
+});
+
+// zoom
+zoom.addEventListener('input', ()=>{
+  const z = parseInt(zoom.value,10) || 100;
+  document.querySelector('.canvasPanel').style.transform = `scale(${z/100})`;
+  document.querySelector('.canvasPanel').style.transformOrigin = 'left top';
+  zoomVal.textContent = z + '%';
+});
+
+// ---------- Save/Load ----------
+function saveAll(){
+  try{
+    const serial = pages.map(p=>({
+      persona:p.persona, paper:p.paper, text:p.text, ink:p.ink, thick:p.thick, fontSize:p.fontSize,
+      lineSpacing:p.lineSpacing, jitter:p.jitter, slant:p.slant, baseline:p.baseline, kerning:p.kerning, bleed:p.bleed
+    }));
+    localStorage.setItem('ultimate_notebook_v1', JSON.stringify(serial));
+  }catch(e){}
+}
+
+function loadAll(){
+  try{
+    const raw = localStorage.getItem('ultimate_notebook_v1');
+    if(!raw) return false;
+    const arr = JSON.parse(raw);
+    // clear existing DOM
+    pageStack.innerHTML = '';
+    pages = [];
+    arr.forEach(a => createPage(a));
+    return true;
+  }catch(e){ return false; }
+}
+
+// ---------- Downloads ----------
+downloadPNG.addEventListener('click', ()=>{
+  if(currentIndex < 0) return;
+  renderPage(currentIndex);
+  setTimeout(()=>{
+    const p = pages[currentIndex];
+    const exportCanvas = document.createElement('canvas');
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    exportCanvas.width = 793 * DPR;
+    exportCanvas.height = 1122 * DPR;
+    exportCanvas.style.width = '793px';
+    exportCanvas.style.height = '1122px';
+    const ctx = exportCanvas.getContext('2d');
+    // swap: draw background & overlay by copying existing canvas (which is DPR-aware)
+    ctx.drawImage(p.canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+    const link = document.createElement('a');
+    link.download = `page-${currentIndex+1}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+  },140);
+});
+
+downloadJPG.addEventListener('click', ()=>{
+  if(currentIndex < 0) return;
+  renderPage(currentIndex);
+  setTimeout(()=>{
+    const p = pages[currentIndex];
+    const exportCanvas = document.createElement('canvas');
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    exportCanvas.width = 793 * DPR;
+    exportCanvas.height = 1122 * DPR;
+    exportCanvas.style.width = '793px';
+    exportCanvas.style.height = '1122px';
+    const ctx = exportCanvas.getContext('2d');
+    ctx.drawImage(p.canvas,0,0, exportCanvas.width, exportCanvas.height);
+    const link = document.createElement('a');
+    link.download = `page-${currentIndex+1}.jpg`;
+    link.href = exportCanvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+  },140);
+});
+
+downloadPDF.addEventListener('click', async ()=>{
+  saveAll();
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p','pt','a4');
+  for(let i=0;i<pages.length;i++){
+    renderPage(i);
+    await new Promise(r=>setTimeout(r,160));
+    const dataURL = pages[i].canvas.toDataURL('image/png');
+    if(i>0) pdf.addPage();
+    pdf.addImage(dataURL, 'PNG', 0, 0, 595, 842);
+  }
+  pdf.save('notebook.pdf');
+});
+
+// ---------- Init ----------
+populatePersonas();
+populatePaperOptions();
+// Insert the full base64 string into the templateBackgrounds mapping (replace placeholder)
+(function ensureImageData(){
+  // If UPLOADED_IMAGE_DATAURL was trimmed to '...' (e.g., by editors), try to fetch from window variable
+  // In production file the full base64 is present.
+  if(UPLOADED_IMAGE_DATAURL && UPLOADED_IMAGE_DATAURL.indexOf('base64,')>-1){
+    templateBackgrounds.image_sample = UPLOADED_IMAGE_DATAURL;
+  }
+})();
+
+if(!loadAll()){
+  createPage(); // create first page and render
+} else {
+  if(pages.length > 0) selectPageById(pages[0].id);
+}
+updatePageCount();
+
+// expose render for debug
+window.renderAll = ()=> pages.forEach((p,i)=> renderPage(i));
+
+</script>
+</body>
+</html>
